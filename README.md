@@ -1,53 +1,174 @@
-1. A Janela do Jogo
+package sudoku;
 
-O programa mostra uma grade de 9x9 células (JTextField), onde o jogador pode digitar números.
+import javax.swing.*;
+import java.awt.*;
+import java.util.Random;
 
-Cada célula tem o texto centralizado e uma fonte grande para ficar visível.
+public class Sudoku extends JFrame {
 
-Um botão “Novo Jogo” permite começar um jogo novo a qualquer momento.
+    private JTextField[][] cells = new JTextField[9][9];
+    private int[][] solution = new int[9][9];
+    private int[][] puzzle = new int[9][9];
 
-2. Como o Sudoku é criado
+    public Sudoku() {
+        setTitle("Sudoku");
+        setSize(500, 550);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
 
-O programa mantém duas matrizes (tabuleiros) de números:
+        JPanel grid = new JPanel(new GridLayout(9, 9));
+        Font font = new Font("Arial", Font.BOLD, 18);
 
-solution → Guarda a solução completa do Sudoku.
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                JTextField cell = new JTextField();
+                cell.setHorizontalAlignment(JTextField.CENTER);
+                cell.setFont(font);
 
-puzzle → Mostra o Sudoku para o jogador, com alguns números escondidos.
+                final int row = i;
+                final int col = j;
 
-2.1 Gerando a solução automaticamente
+                cell.addKeyListener(new java.awt.event.KeyAdapter() {
+                    @Override
+                    public void keyReleased(java.awt.event.KeyEvent e) {
+                        checkCell(row, col);
+                    }
+                });
 
-O programa preenche o tabuleiro usando backtracking (uma forma de testar números até encontrar uma solução correta).
+                cells[i][j] = cell;
+                grid.add(cell);
+            }
+        }
 
-Ele tenta colocar números de 1 a 9 em cada célula, garantindo que não haja repetição na linha, coluna ou bloco 3x3.
+        JButton newGame = new JButton("Novo Jogo");
+        newGame.addActionListener(e -> startNewGame());
 
-Quando um número não funciona, ele volta e tenta outro.
+        add(grid, BorderLayout.CENTER);
+        add(newGame, BorderLayout.SOUTH);
 
-2.2 Criando o puzzle
+        startNewGame();
+    }
 
-Depois de gerar a solução completa, o programa copia tudo para o tabuleiro que o jogador vai ver.
+    private void startNewGame() {
+        solution = new int[9][9];
+        puzzle = new int[9][9];
 
-Em seguida, ele remove alguns números aleatoriamente para que o jogador tenha que completar.
+        generateSolution();
+        copySolution();
+        removeNumbers(40);
+        updateBoard();
+    }
 
-3. Jogando e verificando respostas
+    private void updateBoard() {
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+                if (puzzle[i][j] != 0) {
+                    cells[i][j].setText(String.valueOf(puzzle[i][j]));
+                    cells[i][j].setEditable(false);
+                    cells[i][j].setBackground(Color.LIGHT_GRAY);
+                } else {
+                    cells[i][j].setText("");
+                    cells[i][j].setEditable(true);
+                    cells[i][j].setBackground(Color.WHITE);
+                }
+                cells[i][j].setForeground(Color.BLACK);
+            }
+        }
+    }
 
-O jogador digita números nas células vazias.
+    private void checkCell(int row, int col) {
+        if (!cells[row][col].isEditable()) return;
 
-Cada célula verifica imediatamente se o número digitado está correto:
+        try {
+            int value = Integer.parseInt(cells[row][col].getText());
+            if (value == solution[row][col]) {
+                cells[row][col].setForeground(Color.BLACK);
+            } else {
+                cells[row][col].setForeground(Color.RED);
+            }
+        } catch (Exception e) {
+            cells[row][col].setForeground(Color.BLACK);
+        }
+    }
 
-Preto → correto
+    private void generateSolution() {
+        fillBoard(solution);
+    }
 
-Vermelho → errado
+    private boolean fillBoard(int[][] board) {
+        for (int row = 0; row < 9; row++) {
+            for (int col = 0; col < 9; col++) {
+                if (board[row][col] == 0) {
+                    int[] numbers = shuffleNumbers();
+                    for (int num : numbers) {
+                        if (isValid(board, row, col, num)) {
+                            board[row][col] = num;
+                            if (fillBoard(board)) return true;
+                            board[row][col] = 0;
+                        }
+                    }
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
 
-4. Outras funções importantes
+    private boolean isValid(int[][] board, int row, int col, int num) {
+        for (int i = 0; i < 9; i++) {
+            if (board[row][i] == num || board[i][col] == num)
+                return false;
+        }
 
-shuffleNumbers() → Mistura os números de 1 a 9 para criar soluções diferentes.
+        int startRow = (row / 3) * 3;
+        int startCol = (col / 3) * 3;
 
-isValid() → Verifica se o número pode ser colocado naquela posição sem quebrar as regras do Sudoku.
+        for (int i = startRow; i < startRow + 3; i++) {
+            for (int j = startCol; j < startCol + 3; j++) {
+                if (board[i][j] == num)
+                    return false;
+            }
+        }
+        return true;
+    }
 
-removeNumbers() → Remove números do tabuleiro para criar o desafio.
+    private int[] shuffleNumbers() {
+        int[] nums = {1,2,3,4,5,6,7,8,9};
+        Random r = new Random();
+        for (int i = 0; i < nums.length; i++) {
+            int j = r.nextInt(nums.length);
+            int temp = nums[i];
+            nums[i] = nums[j];
+            nums[j] = temp;
+        }
+        return nums;
+    }
 
-5. Iniciando o programa
+    private void copySolution() {
+        for (int i = 0; i < 9; i++)
+            for (int j = 0; j < 9; j++)
+                puzzle[i][j] = solution[i][j];
+    }
 
+    private void removeNumbers(int amount) {
+        Random r = new Random();
+        while (amount > 0) {
+            int row = r.nextInt(9);
+            int col = r.nextInt(9);
+            if (puzzle[row][col] != 0) {
+                puzzle[row][col] = 0;
+                amount--;
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new Sudoku().setVisible(true);
+        });
+    }
+}
 Quando o programa inicia, ele cria uma nova solução e gera o puzzle.
 
 O jogador vê a grade e pode começar a jogar.
